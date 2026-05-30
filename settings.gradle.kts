@@ -1,3 +1,17 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+    plugins {
+        id("com.android.library") version "8.6.1"
+        id("com.android.application") version "8.6.1"
+        kotlin("android") version "1.7.21"
+        kotlin("plugin.serialization") version "1.7.21"
+    }
+}
+
 /**
  * Add or remove modules to load as needed for local development here.
  */
