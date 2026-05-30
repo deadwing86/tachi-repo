@@ -12,3 +12,6 @@ gen
 generated-src/
 .kotlin
 *.jks
+
+signingkey.b64.txt
+signingkey.jks
