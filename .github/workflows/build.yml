@@ -1,0 +1,66 @@
+name: Build & Deploy Repo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate index.min.json
+        run: |
+          python3 -c "
+          import json, re
+
+          with open('index.json') as f:
+              data = json.load(f)
+
+          # Validate APK filenames match index entries
+          import os
+          apks = set(os.listdir('apk')) if os.path.exists('apk') else set()
+          for ext in data:
+              if ext['apk'] not in apks:
+                  print(f'WARNING: Missing APK for {ext[\"name\"]}: {ext[\"apk\"]}')
+
+          with open('index.min.json', 'w') as f:
+              json.dump(data, f, separators=(',', ':'))
+
+          print(f'Generated index.min.json with {len(data)} extensions')
+          "
+
+      - name: Commit generated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.min.json
+          git diff --cached --quiet || git commit -m "Update index.min.json"
+          git push
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/configure-pages@v4
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
