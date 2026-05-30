@@ -56,7 +56,10 @@ jobs:
       - name: Collect APKs
         run: |
           mkdir -p repo/apk
-          find . -name "*.apk" -not -path "./repo/*" | xargs -I{} cp {} repo/apk/
+          find . -name "*.apk" -not -path "./repo/*" | while read apk; do
+            dest="repo/apk/$(basename "$apk" | sed 's/-release\.apk/.apk/')"
+            cp "$apk" "$dest"
+          done
 
       - name: Generate index
         run: |
