@@ -77,9 +77,11 @@ jobs:
             | grep "SHA256:" | awk '{print $2}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
           cat > repo/repo.json << EOF
           {
-            "name": "Hitomi Repo",
-            "website": "https://github.com/${{ github.repository }}",
-            "signingKeyFingerprint": "$FINGERPRINT"
+            "meta": {
+              "name": "Hitomi Repo",
+              "website": "https://github.com/${{ github.repository }}",
+              "signingKeyFingerprint": "$FINGERPRINT"
+            }
           }
           EOF
 
