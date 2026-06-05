@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.extension.en.hentai2read
 
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.FilterList
-import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
@@ -20,6 +19,12 @@ class Hentai2Read : ParsedHttpSource() {
     override val baseUrl = "https://hentai2read.com"
     override val lang = "en"
     override val supportsLatest = true
+
+    override val client = network.cloudflareClient
+
+    override fun headersBuilder() = super.headersBuilder()
+        .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+        .add("Referer", baseUrl)
 
     // =============================== Popular ================================
 
@@ -98,9 +103,8 @@ class Hentai2Read : ParsedHttpSource() {
         return document.select("img.img-responsive[src*=static], #all img[src]")
             .mapIndexed { i, img -> Page(i, imageUrl = img.absUrl("src")) }
             .ifEmpty {
-                // fallback: images loaded via script
                 val script = document.selectFirst("script:containsData(imglist)")?.data() ?: ""
-                val regex = Regex("""["'](https?://[^"']+\.(?:jpg|png|webp|gif))['"]]""")
+                val regex = Regex("""["'](https?://[^"']+\.(?:jpg|png|webp|gif))["']""")
                 regex.findAll(script).mapIndexed { i, m -> Page(i, imageUrl = m.groupValues[1]) }.toList()
             }
     }
