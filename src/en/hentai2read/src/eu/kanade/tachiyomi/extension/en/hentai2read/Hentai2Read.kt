@@ -33,9 +33,11 @@ class Hentai2Read : ParsedHttpSource() {
     override fun popularMangaSelector() = ".book-grid-item-container"
 
     override fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
-        val a = element.selectFirst(".overlay-title a")!!
+        val a = element.selectFirst(".overlay-title a")
+            ?: element.selectFirst("a[href]")
+            ?: return@apply
         setUrlWithoutDomain(a.attr("href"))
-        title = a.ownText().trim()
+        title = a.ownText().trim().ifBlank { a.attr("title") }
         thumbnail_url = element.selectFirst("picture img")?.absUrl("src")
     }
 
@@ -81,7 +83,9 @@ class Hentai2Read : ParsedHttpSource() {
     override fun chapterListSelector() = "ul.nav-chapters li"
 
     override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
-        val a = element.selectFirst("a.pull-left")!!
+        val a = element.selectFirst("a.pull-left")
+            ?: element.selectFirst("a[href]")
+            ?: return@apply
         setUrlWithoutDomain(a.attr("href"))
         name = a.ownText().trim()
         date_upload = 0L
