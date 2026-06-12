@@ -61,6 +61,50 @@ jobs:
             cp "$apk" "$dest"
           done
 
+      - name: Add keiyoushi extensions
+        run: |
+          KEIYOUSHI_INDEX=$(curl -s "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json")
+          PKGS=(
+            "eu.kanade.tachiyomi.extension.all.hentai3"
+            "eu.kanade.tachiyomi.extension.all.cosplaytele"
+            "eu.kanade.tachiyomi.extension.all.hentaiera"
+            "eu.kanade.tachiyomi.extension.all.hentaifox"
+            "eu.kanade.tachiyomi.extension.all.hentaihand"
+            "eu.kanade.tachiyomi.extension.all.hentaizap"
+            "eu.kanade.tachiyomi.extension.all.nhentaicom"
+            "eu.kanade.tachiyomi.extension.all.nhentaixxx"
+            "eu.kanade.tachiyomi.extension.all.photos18"
+            "eu.kanade.tachiyomi.extension.all.xarthunter"
+            "eu.kanade.tachiyomi.extension.all.webtoons"
+            "eu.kanade.tachiyomi.extension.en.ninehentai"
+            "eu.kanade.tachiyomi.extension.en.eighteenporncomic"
+            "eu.kanade.tachiyomi.extension.en.allporncomic"
+            "eu.kanade.tachiyomi.extension.en.aquamanga"
+            "eu.kanade.tachiyomi.extension.en.hentaidex"
+            "eu.kanade.tachiyomi.extension.en.hentairead"
+            "eu.kanade.tachiyomi.extension.en.infinityscans"
+            "eu.kanade.tachiyomi.extension.en.madaradex"
+            "eu.kanade.tachiyomi.extension.en.mangahentai"
+            "eu.kanade.tachiyomi.extension.en.mangafox"
+            "eu.kanade.tachiyomi.extension.en.mangatx"
+            "eu.kanade.tachiyomi.extension.en.manhuaplus"
+            "eu.kanade.tachiyomi.extension.en.manhuafast"
+            "eu.kanade.tachiyomi.extension.en.manhuaplusorg"
+            "eu.kanade.tachiyomi.extension.en.toonily"
+            "eu.kanade.tachiyomi.extension.en.toonilyme"
+            "eu.kanade.tachiyomi.extension.vi.goctruyentranh"
+            "eu.kanade.tachiyomi.extension.vi.hentaivnplus"
+            "eu.kanade.tachiyomi.extension.vi.nettruyenco"
+            "eu.kanade.tachiyomi.extension.vi.truyenhentai18"
+          )
+          for pkg in "${PKGS[@]}"; do
+            apk=$(echo "$KEIYOUSHI_INDEX" | jq -r ".[] | select(.pkg == \"$pkg\") | .apk")
+            if [ -n "$apk" ] && [ "$apk" != "null" ]; then
+              curl -sL "https://github.com/keiyoushi/extensions/raw/repo/apk/$apk" -o "repo/apk/$apk"
+              echo "Downloaded $apk"
+            fi
+          done
+
       - name: Generate index
         run: |
           INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
