@@ -61,12 +61,17 @@ jobs:
             cp "$apk" "$dest"
           done
 
+      - name: Generate index
+        run: |
+          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
+          curl -L "$INSPECTOR_LINK" -o Inspector.jar
+          java -jar Inspector.jar "repo/apk" "output.json" "tmp"
+          python ./.github/scripts/create-repo.py
+
       - name: Add keiyoushi extensions
         run: |
-          # Fetch existing APKs from repo branch to avoid re-downloading removed ones
           git fetch origin repo 2>/dev/null || true
-          EXISTING=$(git ls-tree -r origin/repo --name-only 2>/dev/null | grep "^apk/" || true)
-
+          EXISTING=$(git ls-tree -r origin/repo --name-only 2>/dev/null || true)
           KEIYOUSHI_INDEX=$(curl -s "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json")
           PKGS=(
             "eu.kanade.tachiyomi.extension.all.hentai3"
@@ -101,35 +106,46 @@ jobs:
             "eu.kanade.tachiyomi.extension.vi.nettruyenco"
             "eu.kanade.tachiyomi.extension.vi.truyenhentai18"
           )
+          mkdir -p repo/apk repo/icon
+          EXTRA_ENTRIES="[]"
           for pkg in "${PKGS[@]}"; do
-            apk=$(echo "$KEIYOUSHI_INDEX" | jq -r ".[] | select(.pkg == \"$pkg\") | .apk")
-            if [ -z "$apk" ] || [ "$apk" = "null" ]; then
-              # Not in keiyoushi anymore — restore from our repo branch if we have it
-              cached=$(echo "$EXISTING" | grep "/${pkg//./\\.}-" | head -1)
-              if [ -n "$cached" ]; then
-                git show origin/repo:"$cached" > "repo/${cached#apk/}" 2>/dev/null && echo "Restored $cached from cache" || true
+            entry=$(echo "$KEIYOUSHI_INDEX" | jq -c ".[] | select(.pkg == \"$pkg\")")
+            apk=$(echo "$entry" | jq -r ".apk // empty")
+            if [ -z "$apk" ]; then
+              # Keiyoushi removed it — find any cached version in our repo branch
+              cached_apk=$(echo "$EXISTING" | grep "apk/$(echo $pkg | tr '.' '\.')-" | head -1 || true)
+              if [ -n "$cached_apk" ]; then
+                apk=$(basename "$cached_apk")
+                git show origin/repo:"$cached_apk" > "repo/apk/$apk"
+                cached_icon=$(echo "$EXISTING" | grep "icon/$pkg.png" | head -1 || true)
+                [ -n "$cached_icon" ] && git show origin/repo:"$cached_icon" > "repo/icon/$pkg.png"
+                echo "Restored from cache: $apk"
               else
                 echo "WARN: $pkg not found anywhere, skipping"
+                continue
               fi
             else
-              dest="repo/apk/$apk"
-              cached_match=$(echo "$EXISTING" | grep "apk/${pkg//./\\.}-" | head -1)
-              if [ -n "$cached_match" ] && echo "$EXISTING" | grep -q "apk/$apk"; then
-                # Same version already cached — restore from repo branch
-                git show origin/repo:"apk/$apk" > "$dest" 2>/dev/null && echo "Cached $apk" || \
-                  { curl -sL "https://github.com/keiyoushi/extensions/raw/repo/apk/$apk" -o "$dest" && echo "Downloaded $apk"; }
+              # Try cache first, fall back to download
+              if echo "$EXISTING" | grep -q "apk/$apk"; then
+                git show origin/repo:"apk/$apk" > "repo/apk/$apk" && echo "Cached: $apk" || \
+                  { curl -sL "https://github.com/keiyoushi/extensions/raw/repo/apk/$apk" -o "repo/apk/$apk" && echo "Downloaded: $apk"; }
               else
-                curl -sL "https://github.com/keiyoushi/extensions/raw/repo/apk/$apk" -o "$dest" && echo "Downloaded $apk"
+                curl -sL "https://github.com/keiyoushi/extensions/raw/repo/apk/$apk" -o "repo/apk/$apk" && echo "Downloaded: $apk"
+              fi
+              # Icon
+              if echo "$EXISTING" | grep -q "icon/$pkg.png"; then
+                git show origin/repo:"icon/$pkg.png" > "repo/icon/$pkg.png" 2>/dev/null || \
+                  curl -sL "https://github.com/keiyoushi/extensions/raw/repo/icon/$pkg.png" -o "repo/icon/$pkg.png"
+              else
+                curl -sL "https://github.com/keiyoushi/extensions/raw/repo/icon/$pkg.png" -o "repo/icon/$pkg.png"
               fi
             fi
+            EXTRA_ENTRIES=$(echo "$EXTRA_ENTRIES" | jq ". + [$entry]")
           done
-
-      - name: Generate index
-        run: |
-          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
-          curl -L "$INSPECTOR_LINK" -o Inspector.jar
-          java -jar Inspector.jar "repo/apk" "output.json" "tmp"
-          python ./.github/scripts/create-repo.py
+          # Merge into index.min.json
+          BASE=$(cat repo/index.min.json)
+          echo "$BASE" | jq -c ". + $EXTRA_ENTRIES" > repo/index.min.json
+          echo "Final index count: $(cat repo/index.min.json | jq length)"
 
       - name: Generate repo.json
         env:
