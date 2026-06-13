@@ -145,14 +145,17 @@ jobs:
               fi
             fi
             # Re-sign with our key so it matches repo.json fingerprint
-            APKSIGNER=$(find ${ANDROID_HOME}/build-tools -name "apksigner" | sort -r | head -1)
-            zip -q -d "repo/apk/$apk" 'META-INF/*' 2>/dev/null || true
-            "$APKSIGNER" sign \
-              --ks signingkey.jks \
-              --ks-pass "pass:$KEY_STORE_PASSWORD" \
-              --ks-key-alias "$ALIAS" \
-              --key-pass "pass:$KEY_PASSWORD" \
-              "repo/apk/$apk" && echo "Re-signed: $apk"
+            APKSIGNER=$(find ${ANDROID_HOME}/build-tools -name "apksigner" -type f 2>/dev/null | sort -rV | head -1)
+            if [ -n "$APKSIGNER" ]; then
+              "$APKSIGNER" sign \
+                --ks signingkey.jks \
+                --ks-pass "pass:$KEY_STORE_PASSWORD" \
+                --ks-key-alias "$ALIAS" \
+                --key-pass "pass:$KEY_PASSWORD" \
+                "repo/apk/$apk" && echo "Re-signed: $apk" || echo "WARN: re-sign failed for $apk"
+            else
+              echo "WARN: apksigner not found, skipping re-sign for $apk"
+            fi
             EXTRA_ENTRIES=$(echo "$EXTRA_ENTRIES" | jq ". + [$entry]")
           done
           # Merge into index.min.json
