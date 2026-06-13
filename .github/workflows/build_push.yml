@@ -69,10 +69,6 @@ jobs:
           python ./.github/scripts/create-repo.py
 
       - name: Add keiyoushi extensions
-        env:
-          ALIAS: ${{ secrets.ALIAS }}
-          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           git fetch origin repo 2>/dev/null || true
           EXISTING=$(git ls-tree -r origin/repo --name-only 2>/dev/null || true)
@@ -144,18 +140,7 @@ jobs:
                 curl -sL "https://github.com/keiyoushi/extensions/raw/repo/icon/$pkg.png" -o "repo/icon/$pkg.png"
               fi
             fi
-            # Re-sign with our key so it matches repo.json fingerprint
-            APKSIGNER=$(find ${ANDROID_HOME}/build-tools -name "apksigner" -type f 2>/dev/null | sort -rV | head -1)
-            if [ -n "$APKSIGNER" ]; then
-              "$APKSIGNER" sign \
-                --ks signingkey.jks \
-                --ks-pass "pass:$KEY_STORE_PASSWORD" \
-                --ks-key-alias "$ALIAS" \
-                --key-pass "pass:$KEY_PASSWORD" \
-                "repo/apk/$apk" && echo "Re-signed: $apk" || echo "WARN: re-sign failed for $apk"
-            else
-              echo "WARN: apksigner not found, skipping re-sign for $apk"
-            fi
+            echo "Added: $apk"
             EXTRA_ENTRIES=$(echo "$EXTRA_ENTRIES" | jq ". + [$entry]")
           done
           # Merge into index.min.json
