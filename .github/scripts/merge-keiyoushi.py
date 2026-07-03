@@ -68,7 +68,9 @@ def restore_from_cache(path):
         capture_output=True
     )
     if result.returncode == 0:
-        Path(path).write_bytes(result.stdout)
+        destination = REPO_DIR / path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(result.stdout)
         return True
     return False
 
